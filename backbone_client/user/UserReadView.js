@@ -1,6 +1,6 @@
-define([ 
-    "backbone", 
-    "handlebars", 
+define([
+    "backbone",
+    "handlebars",
     "corpus/Corpus",
     "corpus/Corpuses",
     "corpus/CorpusLinkView",
@@ -8,8 +8,8 @@ define([
     "app/UpdatingCollectionView",
     "OPrime"
 ], function(
-    Backbone, 
-    Handlebars, 
+    Backbone,
+    Handlebars,
     Corpus,
     Corpuses,
     CorpusLinkView,
@@ -22,12 +22,12 @@ define([
     /**
      * @class The layout of a single User. This view is used in the comments
      *        , it is also embedable in the UserEditView.
-     *        
+     *
      * @property {String} format Must be set when the view is initialized. Valid
      *           values are "link" "modal" "fullscreen" and "public"
-     * 
+     *
      * @description Starts the UserView.
-     * 
+     *
      * @extends Backbone.View
      * @constructs
      */
@@ -37,7 +37,7 @@ define([
       this.changeViewsOfInternalModels();
 
     },
-    
+
     events : {
       "click .edit-user-profile" : function(e){
         if(e){
@@ -59,7 +59,7 @@ define([
           e.stopPropagation();
           e.preventDefault();
         }
-        $("#user-modal").modal("hide");
+        $("#user-modal").hide();
         window.app.router.showFullscreenUser(this.model.id);
       }
      },
@@ -67,24 +67,24 @@ define([
      * The underlying model of the UserReadView is a User.
      */
     model : User,
-    
+
     classname : "user",
-    
+
     /**
      * The Handlebars template rendered as the UserReadLinkView.
      */
     linkTemplate : Handlebars.templates.user_read_link,
-    
+
     /**
      * The Handlebars template rendered as the UserReadModalView.
      */
     modalTemplate : Handlebars.templates.user_read_modal,
-    
+
     /**
      * The Handlebars template rendered as the UserReadFullscreenView.
      */
     fullscreenTemplate : Handlebars.templates.user_read_fullscreen,
-    
+
     /**
      * Renders the UserReadView.
      */
@@ -95,7 +95,7 @@ define([
         return this;
       }
       var jsonToRender = this.model.toJSON();
-      
+
       jsonToRender.locale_User_Profile = Locale.get("locale_Private_Profile");
       jsonToRender.locale_Edit_User_Profile_Tooltip = Locale.get("locale_Edit_User_Profile_Tooltip");
       jsonToRender.locale_View_Public_Profile_Tooltip = Locale.get("locale_View_Public_Profile_Tooltip");
@@ -126,23 +126,35 @@ define([
       }else{
         throw("The UserReadView doesn't know what format to display, you need to tell it a format");
       }
-      
-      if(this.format !== "link"){
-        try{
+
+      if (this.format !== "link") {
+        try {
           $(this.el).find(".description").html($.wikiText(jsonToRender.description));
           $(this.el).find(".researchInterest").html($.wikiText(jsonToRender.researchInterest));
-        }catch(e){
+        } catch (e) {
           OPrime.debug("Wiki markup formatting didnt work.");
         }
 
         // Display the CorpusesReadView
-        this.corpusesReadView.el = $(this.el).find('.corpuses');
-        this.corpusesReadView.render();
+        this.corporaReadView.el = $(this.el).find('.corpora');
+        this.corporaReadView.render();
+
+        var connection = window.app.get("connection");
+        var self = this;
+        FieldDB.CORS.makeCORSRequest({
+          type: 'GET',
+          url: OPrime.getCouchUrl(connection, "/_session")
+        }).then(function(serverResults) {
+          if (self.model && serverResults.userCtx.name && self.model.updateListOfCorpora && self.model.get("username") === serverResults.userCtx.name) {
+            self.model.updateListOfCorpora(serverResults.userCtx.roles);
+            self.changeViewsOfInternalModels();
+          }
+        });
       }
 
       return this;
     },
-    
+
     changeViewsOfInternalModels : function(){
       //Create a CommentReadView      TODO add comments to users
 //      this.commentReadView = new UpdatingCollectionView({
@@ -150,20 +162,20 @@ define([
 //        childViewConstructor : CommentReadView,
 //        childViewTagName     : 'li'
 //      });
-    //Create a CommentReadView     
-      var corpuses = new Corpuses();
+    //Create a CommentReadView
+      var corpora = new Corpuses();
       try {
-        corpuses = new Backbone.Collection(JSON.parse(localStorage.getItem(
-          this.model.get("username") + "corpusesUserHasAccessTo")));
+        corpora = new Backbone.Collection(JSON.parse(localStorage.getItem(
+          this.model.get("username") + "corporaUserHasAccessTo")));
       } catch (e) {
         console.log("Couldn't load the list of corpora which the user has access to.");
-      } 
-      this.corpusesReadView = new UpdatingCollectionView({
-        collection : corpuses,
+      }
+      this.corporaReadView = new UpdatingCollectionView({
+        collection : corpora,
         childViewConstructor : CorpusLinkView,
         childViewTagName : 'li'
       });
-      
+
     }
   });
 

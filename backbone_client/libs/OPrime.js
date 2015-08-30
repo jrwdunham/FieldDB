@@ -24,27 +24,27 @@ OPrime.touchUrl = "http://localhost:8128/";
  */
 OPrime.pouchUrl = "idb://";
 
-OPrime.getCouchUrl = function(couchConnection, couchdbcommand) {
-  if (!couchConnection) {
-    couchConnection = OPrime.defaultCouchConnection();
-    if (OPrime.debugMode) OPrime.debug("Using the apps ccouchConnection", couchConnection);
+OPrime.getCouchUrl = function(connection, couchdbcommand) {
+  if (!connection) {
+    connection = OPrime.defaultConnection();
+    if (OPrime.debugMode) OPrime.debug("Using the apps cconnection", connection);
   }
 
-  var couchurl = couchConnection.protocol + couchConnection.domain;
-  if (couchConnection.port && couchConnection.port != "443" && couchConnection.port != "80") {
-    couchurl = couchurl + ":" + couchConnection.port;
+  var couchurl = connection.protocol + connection.domain;
+  if (connection.port && connection.port != "443" && connection.port != "80") {
+    couchurl = couchurl + ":" + connection.port;
   }
-  if(!couchConnection.path){
-    couchConnection.path = "";
+  if(!connection.path){
+    connection.path = "";
   }
-  couchurl = couchurl + couchConnection.path;
+  couchurl = couchurl + connection.path;
   if (couchdbcommand === null || couchdbcommand === undefined) {
-    couchurl = couchurl + "/" + couchConnection.pouchname;
+    couchurl = couchurl + "/" + connection.dbname;
   } else {
     couchurl = couchurl + couchdbcommand;
   }
 
-    
+
   /* Switch user to the new dev servers if they have the old ones */
   couchurl = couchurl.replace(/ifielddevs.iriscouch.com/g, "corpus.lingsync.org");
   couchurl = couchurl.replace(/corpusdev.lingsync.org/g, "corpus.lingsync.org");
@@ -54,7 +54,7 @@ OPrime.getCouchUrl = function(couchConnection, couchdbcommand) {
    * of couchdb directly
    */
   // couchurl = couchurl.replace(/https/g,"http").replace(/6984/g,"3186");
-  
+
   return couchurl;
 };
 
@@ -178,7 +178,7 @@ OPrime.makePublisher = function(o) {
 /**
  * http://www.w3schools.com/js/js_cookies.asp name of the cookie, the value of
  * the cookie, and the number of days until the cookie expires.
- * 
+ *
  * @param c_name
  * @param value
  * @param exdays
@@ -231,7 +231,7 @@ OPrime.isChromeApp = function() {
 };
 
 OPrime.isCouchApp = function() {
-  return window.location.href.indexOf("_design/pages") > -1;
+  return window.location.href.indexOf("_design/") > -1;
 };
 
 OPrime.isTouchDBApp = function() {
@@ -244,7 +244,7 @@ OPrime.isBackboneCouchDBApp = function(){
 /**
  * If not running offline on an android or in a chrome extension, assume we are
  * online.
- * 
+ *
  * @returns {Boolean} true if not on offline Android or on a Chrome Extension
  */
 OPrime.onlineOnly = function() {
@@ -260,7 +260,35 @@ OPrime.getVersion = function(callback) {
   };
   xmlhttp.send(null);
 };
+OPrime.escapeLatexChars = function(input) {
+  var result = input;
+  if (!result.replace) {
+    return "error parsing field, please report this." + JSON.stringify(input);
+  }
+  //curly braces need to be escaped TO and escaped FROM, so we're using a placeholder
+  result = result.replace(/\\/g, "\\textbackslashCURLYBRACES");
+  result = result.replace(/\^/g, "\\textasciicircumCURLYBRACES");
+  result = result.replace(/\~/g, "\\textasciitildeCURLYBRACES");
+  result = result.replace(/#/g, "\\#");
+  result = result.replace(/\$/g, "\\$");
+  result = result.replace(/%/g, "\\%");
+  result = result.replace(/&/g, "\\&");
+  result = result.replace(/_/g, "\\_");
+  result = result.replace(/{/g, "\\{");
+  result = result.replace(/}/g, "\\}");
+  result = result.replace(/</g, "\\textless");
+  result = result.replace(/>/g, "\\textgreater");
 
+  var tipas = app.get("authentication").get("userPrivate").get("prefs").get("unicodes").toJSON();
+  for (var t = 0; t < tipas.length; t++) {
+    if (tipas[t].tipa) {
+      var symbolAsRegularExpession = new RegExp(tipas[t].symbol, "g");
+      result = result.replace(symbolAsRegularExpession, tipas[t].tipa);
+    }
+  }
+  result = result.replace(/CURLYBRACES/g, "{}");
+  return result;
+};
 /*
  * JavaScript Pretty Date Copyright (c) 2011 John Resig (ejohn.org) Licensed
  * under the MIT and GPL licenses.
@@ -276,92 +304,93 @@ OPrime.getVersion = function(callback) {
 // this function is modified from the original in that it expects dates that
 // were created using
 // JSON.stringify(new Date())
-OPrime.prettyDate = function(time) {
-  if (!time) {
-    return undefined;
-  }
-  time = time.replace(/"/g, "");
-  var date = new Date((time || "").replace(/-/g, "/").replace(/[TZ]/g, " "));
-  var greenwichtimenow = JSON.stringify(new Date()).replace(/"/g, "");
-  var greenwichdate = new Date((greenwichtimenow || "").replace(/-/g, "/")
-      .replace(/[TZ]/g, " "));
-  var diff = ((greenwichdate.getTime() - date.getTime()) / 1000);
-  var day_diff = Math.floor(diff / 86400);
+OPrime.prettyDate = function(input) {
+    if (!input) {
+      return '--';
+    }
+    if (input.replace) {
+      input = input.replace(/\"/g, '');
+    }
+    if (input.trim) {
+      input = input.trim();
+    }
+    if (!input) {
+      return '--';
+    }
+    // For unknown historical reasons in the spreadsheet app
+    // there were some dates that were unknown and were set
+    // to a random? date like this:
+    if (input === '2000-09-06T16:31:30.988Z' || (input >= new Date('2000-09-06T16:31:30.000Z') && input <= new Date('2000-09-06T16:31:31.000Z'))) {
+      return 'N/A';
+    }
+    if (!input.toLocaleDateString) {
+      input = new Date(input);
+    }
 
-  if (isNaN(day_diff) || day_diff < 0 ) {
-    return undefined;
-  }
+    var greenwichdate = new Date();
+    var minuteDiff = ((greenwichdate.getTime() - input.getTime()) / 1000);
+    var dayDiff = Math.floor(minuteDiff / 86400);
 
-  if (day_diff >= 548) {
-    return Math.ceil(day_diff / 365) + " years ago";
-  }
-  if (day_diff >= 40) {
-    return Math.ceil(day_diff / 31) + " months ago";
-  }
-  if (day_diff >= 14) {
-    return Math.ceil(day_diff / 7) + " weeks ago";
-  }
-  if (day_diff >= 2) {
-    return Math.ceil(day_diff / 1) + " days ago";
-  }
-  if (day_diff >= 1) {
-    return "Yesterday";
-  }
-  if(diff >= 4000 ){
-    return Math.floor(diff / 3600) + " hours ago";
-  }
-//  if(diff >= 7200 ){
-//    Math.floor(diff / 3600) + " 1 hour ago";
-//  }
-  if(diff >= 70 ){
-    return Math.floor(diff / 60) + " minutes ago";
-  }
-  if(diff >= 120 ){
-    return "1 minute ago";
-  }
-  return "just now";
-};
+    if (isNaN(dayDiff) || dayDiff < 0) {
+      return '--';
+    }
+    if (dayDiff >= 1430) {
+      return (Math.round(dayDiff / 365) + ' years ago');
+    }
+    if (dayDiff >= 1278) {
+      return '3.5 years ago';
+    }
+    if (dayDiff >= 1065) {
+      return '3 years ago';
+    }
+    if (dayDiff >= 913) {
+      return '2.5 years ago';
+    }
+    if (dayDiff >= 730) {
+      return '2 years ago';
+    }
+    if (dayDiff >= 540) {
+      return '1.5 years ago';
+    }
+    if (dayDiff >= 50) {
+      return (Math.round(dayDiff / 31) + ' months ago');
+    }
+    if (dayDiff >= 48) {
+      return '1.5 months ago';
+    }
+    if (dayDiff >= 40) {
+      return '1 month ago';
+    }
+    if (dayDiff >= 16) {
+      return (Math.round(dayDiff / 7) + ' weeks ago').replace('1 weeks', '1 week');
+    }
+    if (dayDiff >= 2) {
+      return (Math.round(dayDiff / 1) + ' days ago').replace('1 days', '1 day');
+    }
+    if (dayDiff >= 1) {
+      return 'Yesterday';
+    }
 
-OPrime.prettyTimestamp = function(timestamp) {
-  var date = new Date(timestamp);
-  var greenwichtimenow = new Date();
-  var diff = ((greenwichtimenow.getTime() - date.getTime()) / 1000);
-  var day_diff = Math.floor(diff / 86400);
+    if (minuteDiff >= 5000) {
+      return (Math.floor(minuteDiff / 3600) + ' hours ago').replace('1 hours', '1.5 hours');
+    }
 
-  if (isNaN(day_diff) || day_diff < 0) {
-    return;
-  }
+    if (minuteDiff >= 4000) {
+      return '1 hour ago';
+    }
+    //  if(minuteDiff >= 7200 ){
+    //    Math.floor(minuteDiff / 3600) + ' 1 hour ago';
+    //  }
+    if (minuteDiff >= 70) {
+      return Math.floor(minuteDiff / 60) + ' minutes ago';
+    }
+    if (minuteDiff >= 120) {
+      return '1 minute ago';
+    }
+    return 'just now';
 
-  if (day_diff >= 548) {
-    return Math.ceil(day_diff / 365) + " years ago";
-  }
-  if (day_diff >= 40) {
-    return Math.ceil(day_diff / 31) + " months ago";
-  }
-  if (day_diff >= 14) {
-    return Math.ceil(day_diff / 7) + " weeks ago";
-  }
-  if (day_diff >= 2) {
-    return Math.ceil(day_diff / 1) + " days ago";
-  }
-  if (day_diff >= 1) {
-    return "Yesterday";
-  }
-  if(diff >= 4000 ){
-    return Math.floor(diff / 3600) + " hours ago";
-  }
-//  if(diff >= 7200 ){
-//    Math.floor(diff / 3600) + " 1 hour ago";
-//  }
-  if(diff >= 70 ){
-    return Math.floor(diff / 60) + " minutes ago";
-  }
-  if(diff >= 120 ){
-    return "1 minute ago";
-  }
-  return "just now";
-};
-
+  };
+OPrime.prettyTimestamp = OPrime.prettyDate;
 /*
  * Audio functions
  */
@@ -433,7 +462,7 @@ OPrime.stopAudioFile = function(divid, callback, callingcontext) {
   } else {
     this.debug("Stopping Audio via HTML5");
     document.getElementById(divid).pause();
-    document.getElementById(divid).currentTime = 0;
+    document.getElementById(divid).currentTime = 0.0;
   }
   if (typeof callback == "function") {
     callback();
@@ -451,26 +480,80 @@ OPrime.playIntervalAudioFile = function(divid, startime, endtime, callback) {
     Android.playIntervalOfAudio(audiourl, startime, endtime);
   } else {
     this.debug("Playing Audio via HTML5 from " + startime + " to " + endtime);
-    document.getElementById(divid).pause();
-    document.getElementById(divid).currentTime = startime;
-    if (OPrime.debugMode) OPrime.debug("Cueing audio to "
-        + document.getElementById(divid).currentTime);
-    document.getElementById(divid).play();
-    OPrime.playingInterval = true;
-    document.getElementById(divid).addEventListener("timeupdate", function() {
-      if (this.currentTime >= endtime && OPrime.playingInterval) {
-        if (OPrime.debugMode) OPrime.debug("CurrentTime: " + this.currentTime);
-        this.pause();
-        OPrime.playingInterval = false; /*
-                                         * workaround for not being able to
-                                         * remove events
-                                         */
+
+    var audioElement = document.getElementById(divid);
+    if(!audioElement){
+      console.log("Audio element does not exist.");
+      return;
+    }
+    var audioElementToPlaySelf = audioElement;
+    var startTimeSelf = startime;
+    //pause all audio and remove all listeners from all audio
+    $(document.getElementsByTagName("audio")).map(function(i, localAudioElement) {
+      // console.log(localAudioElement);
+      localAudioElement.pause();
+      if (window.actuallyPlayAudio) {
+        localAudioElement.removeEventListener('canplaythrough', window.actuallyPlayAudio);
+      }
+      if (window.audioTimeUpdateListener) {
+        localAudioElement.removeEventListener('timeupdate', window.audioTimeUpdateListener);
+      }
+      if (window.audioEndListener) {
+        localAudioElement.removeEventListener('ended', window.audioEndListener);
       }
     });
+
+    window.actuallyPlayAudio = function(){
+      audioElementToPlaySelf.removeEventListener('canplaythrough', window.actuallyPlayAudio);
+      OPrime.playingInterval = true;
+      audioElementToPlaySelf.currentTime = startTimeSelf;
+      console.log("Cueing audio to " + audioElementToPlaySelf.currentTime +", supposed to be "+startTimeSelf);
+      // audioElementToPlaySelf.load();
+      audioElementToPlaySelf.play();
+    };
+    // if(window.audioEndListener){
+    //   window.audioEndListener();
+    // }
+    window.audioEndListener = function(){
+      OPrime.playingInterval = false;
+      audioElementToPlaySelf.removeEventListener('ended', window.audioEndListener);
+      audioElementToPlaySelf.removeEventListener('timeupdate', window.audioTimeUpdateListener);
+      audioElementToPlaySelf.removeEventListener('canplaythrough', window.actuallyPlayAudio);
+      // if(audioElementToPlaySelf.readyState > 0){
+      //   audioElementToPlaySelf.currentTime = startTimeSelf;
+      // }else {
+      //   console.log("Ready state" + audioElementToPlaySelf.readyState);
+      // }
+      audioElementToPlaySelf.load();
+      console.log("Cueing audio to starttime " + audioElementToPlaySelf.currentTime);
+      if (typeof callback == "function") {
+        callback();
+      }
+    };
+    window.audioTimeUpdateListener = function() {
+      if (this.currentTime >= endtime && OPrime.playingInterval) {
+        console.log("Ending at: " + this.currentTime)
+        this.pause();
+        window.audioEndListener();
+      }
+    };
+    if (endtime) {
+      audioElement.addEventListener("timeupdate", window.audioTimeUpdateListener);
+    }
+    audioElement.addEventListener('ended', window.audioEndListener);
+    audioElement.addEventListener('canplaythrough', window.actuallyPlayAudio);
+    try{
+      // audioElement.currentTime = startime;
+      // console.log("Cueing audio to " + audioElement.currentTime);
+      audioElement.load();
+      // audioElement.currentTime = startime;
+      // console.log("Cueing audio again to " + audioElement.currentTime);
+    } catch(e){
+      console.log(e);
+    }
+
   }
-  if (typeof callback == "function") {
-    callback();
-  }
+
 }
 OPrime.captureAudio = function(resultfilename, callbackRecordingStarted,
     callbackRecordingCompleted, callingcontext) {
@@ -679,150 +762,74 @@ OPrime.useUnsecureCouchDB = function() {
   return false;
 };
 
-/*
- * Functions for well formed CORS requests
- */
-OPrime.makeCORSRequest = function(options) {
-  OPrime.debugMode = false;
-  if(!options.method){
-    options.method = options.type || "GET";
-  }
-  if(!options.url){
-    OPrime.bug("There was an error. Please report this.");
-  }
-  if(!options.data){
-    options.data = "";
-  }
-  options.dataToSend = JSON.stringify(options.data).replace(/,/g,"&").replace(/:/g,"=").replace(/"/g,"").replace(/[}{]/g,"");
-
-  if(options.method == "GET" && options.data){
-    options.url = options.url + "?" + options.dataToSend;
-  }
-  /*
-   * Helper function which handles IE
-   */
-  var createCORSRequest = function(method, url){
-    var xhr = new XMLHttpRequest();
-    if ("withCredentials" in xhr) {
-      // XHR for Chrome/Firefox/Opera/Safari.
-      xhr.open(method, url, true);
-    } else if (typeof XDomainRequest != "undefined") {
-      // XDomainRequest for IE.
-      xhr = new XDomainRequest();
-      xhr.open(method, url);
-    } else {
-      // CORS not supported.
-      xhr = null;
-    }
-    return xhr;
-  };
-  
-  var xhr = createCORSRequest(options.method, options.url);
-  if (!xhr) {
-    OPrime.bug('CORS not supported, your browser is unable to contact the database.');
-    return;
-  }
-
-//  if(options.method == "POST"){
-    //xhr.setRequestHeader("Content-type","application/x-www-form-urlencoded");
-    xhr.setRequestHeader("Content-type","application/json");
-    xhr.withCredentials = true;
-//  }
-  
-  xhr.onload = function(e,f,g) {
-    var text = xhr.responseText;
-    if (OPrime.debugMode) OPrime.debug('Response from CORS request to ' + options.url + ': ' + text);
-    if(typeof options.success == "function"){
-      if(text){
-        options.success(JSON.parse(text));
-      }else{
-        OPrime.bug("There was no content in the server's response text. Please report this.");
-        options.error(e,f,g);
-      }
-    }
-    OPrime.debugMode = false;
-  };
-
-  xhr.onerror = function(e,f,g) {
-    if (OPrime.debugMode) OPrime.debug(e,f,g);
-    OPrime.bug('There was an error making the CORS request to '+options.url+ " from "+window.location.href+" the app will not function normally. Please report this.");
-    if(typeof options.error == "function"){
-      options.error(e,f,g);
-    }
-  };
-  if (options.method == "POST") {
-    xhr.send(JSON.stringify(options.data));
-  } else {
-    xhr.send();
-  }
-  
-};
-
-
-
-OPrime.checkToSeeIfCouchAppIsReady = function(urlIsCouchAppReady,
-    readycallback, failcallback) {
+OPrime.checkToSeeIfCouchAppIsReady = function(urlIsCouchAppReady, readycallback, failcallback) {
   if (readycallback) {
     OPrime.checkToSeeIfCouchAppIsReadyreadycallback = readycallback;
   }
+  if(!failcallback){
+    failcallback = function(){
+      OPrime.checkToSeeIfCouchAppIsReady(urlIsCouchAppReady, readycallback, failcallback);
+    }
+  }
   if (!$) {
     OPrime.bug("Can't check if DB is ready.");
-    console
-        .warn("Can't check if DB is ready, checkToSeeIfCouchAppIsReady function depends on JQuery at the moment...");
+    console.warn("Can't check if DB is ready, checkToSeeIfCouchAppIsReady function depends on JQuery at the moment...");
     return;
   }
-  $
-      .ajax({
-        type : 'GET',
-        url : urlIsCouchAppReady,
-        data : {},
-        beforeSend : function(xhr) {
-          // alert("before send" + JSON.stringify(xhr));
-          xhr.setRequestHeader('Accept', 'application/json');
-        },
-        complete : function(e, f, g) {
-          console.log(e, f, g);
-          // alert("Completed contacting the server.");
-        },
-        success : function(serverResults) {
-          console.log("serverResults" + JSON.stringify(serverResults));
-          OPrime.bug("Your database is ready.");
-          if (typeof readycallback == "function") {
-            readycallback();
-          }
-        },// end successful fetch
-        error : function(response) {
-          // alert("Error contacting the server.");
+  var finishedWaiting = function() {
+    localStorage.setItem("urlIsCouchAppReady", urlIsCouchAppReady);
+    if (typeof OPrime.checkToSeeIfCouchAppIsReadyreadycallback == "function") {
+      OPrime.checkToSeeIfCouchAppIsReadyreadycallback();
+    }
+  };
 
-          console.log("error response." + JSON.stringify(response));
-          // alert("error response." + JSON.stringify(response));
+  var continueWaiting = function() {
+    window.setTimeout(failcallback, 2000);
+  };
 
-          if (response.responseText) {
-            if (response.responseText.indexOf("<html") >= 0) {
-              localStorage.setItem("urlIsCouchAppReady", urlIsCouchAppReady);
-              OPrime.bug("Your database is ready.");
-              if (typeof OPrime.checkToSeeIfCouchAppIsReadyreadycallback == "function") {
-                OPrime.checkToSeeIfCouchAppIsReadyreadycallback();
-              }
-              // window.location.replace(urlIsCouchAppReady);
-              return;
-            }
-            var error = JSON.parse(response.responseText);
-            if (error.error == "unauthorized") {
-              OPrime.bug("CouchDB ready but you need to get a session token, this can only happen when you are online.");
-            } else {
-              OPrime.bug("Waiting for database to be created...");
-              // Loop every 2 sec waiting for the database to load
-            }
-          }
-          window.setTimeout(failcallback, 2000);
+  FieldDB.CORS.makeCORSRequest({
+    type: 'GET',
+    url: urlIsCouchAppReady,
+    data: {}
+  }).then(function(serverResults) {
+    console.log("serverResults" + JSON.stringify(serverResults));
+    if (serverResults) {
+      if (serverResults.error) {
+        continueWaiting();
+      } else if (serverResults.rows) {
+        finishedWaiting();
+      }
+    }
+  }, function(response) {
+    // alert("Error contacting the server.");
 
-          // $("#user-welcome-modal").modal("show");
+    console.log("error response." + JSON.stringify(response));
+    // alert("error response." + JSON.stringify(response));
 
-        },
-        dataType : "json"
-      });
 
+    if (response.responseJSON) {
+      if (response.responseJSON.error) {
+        continueWaiting();
+      } else if (response.responseJSON.rows && response.responseJSON.rows.length > 0) {
+        finishedWaiting();
+      }
+    } else {
+      if (response.responseText) {
+        if (response.responseText.indexOf("<html") >= 0) {
+          finishedWaiting();
+          return;
+        }
+        var error = JSON.parse(response.responseText);
+        if (error.error == "unauthorized") {
+          alert("CouchDB ready but you need to get a session token, this can only happen when you are online.");
+        } else {
+          continueWaiting();
+        }
+      } else {
+        continueWaiting();
+      }
+    }
+  });
 };
 
 OPrime.sum = function(list) {

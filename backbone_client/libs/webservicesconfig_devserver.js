@@ -6,7 +6,7 @@ OPrime.apptype = "production";
 
 OPrime.websiteUrl = "https://wwwdev.lingsync.org";
 OPrime.authUrl = "https://authdev.lingsync.org";
-OPrime.audioUrl = "https://audiodev.lingsync.org";
+OPrime.audioUrl = "https://speechdev.lingsync.org";
 OPrime.lexiconUrl = "https://lexicondev.lingsync.org";
 OPrime.corpusUrl = "https://corpusdev.lingsync.org";
 OPrime.activityUrl = "https://activitydev.lingsync.org";
@@ -32,12 +32,12 @@ OPrime.chromeClientUrl = function() {
  * login to any server, and register on the corpus server which matches its
  * origin.
  */
-OPrime.defaultCouchConnection = function() {
+OPrime.defaultConnection = function() {
   var localhost = {
     protocol : "https://",
     domain : "localhost",
     port : "6984",
-    pouchname : "default",
+    dbname : "default",
     path : "",
     authUrl : "https://localhost:3183",
     userFriendlyServerName : "Localhost"
@@ -46,7 +46,7 @@ OPrime.defaultCouchConnection = function() {
   //   protocol : "https://",
   //   domain : "corpusdev.lingsync.org",
   //   port : "443",
-  //   pouchname : "default",
+  //   dbname : "default",
   //   path : "",
   //   authUrl : "https://authdev.lingsync.org",
   //   userFriendlyServerName : "LingSync Beta"
@@ -55,7 +55,7 @@ OPrime.defaultCouchConnection = function() {
     protocol : "https://",
     domain : "corpus.lingsync.org",
     port : "443",
-    pouchname : "default",
+    dbname : "default",
     path : "",
     authUrl : "https://auth.lingsync.org",
     userFriendlyServerName : "LingSync.org"
@@ -67,7 +67,7 @@ OPrime.defaultCouchConnection = function() {
     protocol : "https://",
     domain : "corpus.lingsync.org",
     port : "443",
-    pouchname : "default",
+    dbname : "default",
     path : "",
     authUrl : "https://auth.lingsync.org",
     userFriendlyServerName : "McGill ProsodyLab"
@@ -116,7 +116,8 @@ OPrime.defaultCouchConnection = function() {
   return connection;
 };
 OPrime.getAuthUrl = function(userFriendlyServerName) {
-  var makingSureDefaultAuthIsSet = OPrime.defaultCouchConnection();
+  return "https://auth.lingsync.org";
+  var makingSureDefaultAuthIsSet = OPrime.defaultConnection();
   var authUrl = userFriendlyServerName;
   if (authUrl.indexOf("LingSync.org") >= 0) {
     authUrl = "https://auth.lingsync.org";
@@ -163,12 +164,12 @@ OPrime.getAuthUrl = function(userFriendlyServerName) {
         OPrime
             .bug("We don't know which corpus server to use, so we will just let the user do what they are trying to do.");
       } else {
-        var couchConnection = OPrime.defaultCouchConnection();
+        var connection = OPrime.defaultConnection();
         OPrime
             .bug("We know which corpus server to use, so we will just let the user do what they are trying to do but only in the couchapp.");
-        couchConnection = OPrime.servers[appropriateserver];
-        window.location.replace(OPrime.getCouchUrl(couchConnection, "")
-            + "/public-firstcorpus/_design/pages/corpus.html");
+        connection = OPrime.servers[appropriateserver];
+        window.location.replace(OPrime.getCouchUrl(connection, "")
+            + "/public-firstcorpus/_design/data/corpus.html");
       }
     } else {
       authUrl = OPrime.authUrl;
@@ -182,7 +183,7 @@ OPrime.getMostLikelyUserFriendlyAuthServerName = function(mostLikelyAuthUrl) {
   if (!mostLikelyAuthUrl) {
     mostLikelyAuthUrl = "LingSync.org";
   }
-  var makingSureDefaultAuthIsSet = OPrime.defaultCouchConnection();
+  var makingSureDefaultAuthIsSet = OPrime.defaultConnection();
   var authUrl = OPrime.authUrl;
   if (window.location.origin.indexOf("prosody.linguistics.mcgill") >= 0) {
     mostLikelyAuthUrl = "McGill ProsodyLab";
@@ -265,7 +266,7 @@ OPrime.guessCorpusUrlBasedOnWindowOrigin = function(dbname) {
     } else if (corpusURL.indexOf("localhost") >= 0) {
       // use the window origin
     }
-    optionalCouchAppPath = corpusURL + "/" + dbname + "/_design/pages/";
+    optionalCouchAppPath = corpusURL + "/" + dbname + "/_design/data/";
   }
   return optionalCouchAppPath;
 };

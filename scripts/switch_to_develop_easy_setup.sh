@@ -9,9 +9,9 @@ mv output backbone_client/libs/OPrime.js
 
 echo ""
 echo ""
-echo "Put the dev analytics code."
-sed 's/_AnalyticsCode = "UA-[0123456789]*-1";/_AnalyticsCode = "UA-32705284-1";/' backbone_client/libs/analytics.js  > output
-mv output backbone_client/libs/analytics.js
+# echo "Put the dev analytics code."
+# sed 's/_AnalyticsCode = "UA-[0123456789]*-1";/_AnalyticsCode = "UA-32705284-1";/' backbone_client/libs/analytics.js  > output
+# mv output backbone_client/libs/analytics.js
 
 echo ""
 echo ""
@@ -32,11 +32,6 @@ mv output backbone_client/user_online_dashboard.js
 sed 's/webservicesconfig_[^,]*/webservicesconfig_devserver"/' backbone_client/welcome_online_dashboard.js  > output
 mv output backbone_client/welcome_online_dashboard.js
 
-echo ""
-echo ""
-echo "Making localhost available in the spreadsheet app"
-sed 's/scope.localhost = true/scope.localhost = false/' angular_client/modules/spreadsheet/js/controllers/SpreadsheetController.js  > output
-mv output angular_client/modules/spreadsheet/js/controllers/SpreadsheetController.js
 
 echo ""
 echo ""

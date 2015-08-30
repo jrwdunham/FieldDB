@@ -1,4 +1,3 @@
-
 /**
  * @license AngularJS v1.0.2
  * (c) 2010-2012 Google, Inc. http://angularjs.org
@@ -14602,7 +14601,7 @@ OPrime.isChromeApp = function() {
 };
 
 OPrime.isCouchApp = function() {
-  return window.location.href.indexOf("_design/pages") > -1;
+  return window.location.href.indexOf("_design/") > -1;
 };
 
 OPrime.isTouchDBApp = function() {
@@ -15212,7 +15211,7 @@ define(
        * TODO We probably dont need two controllers one for users one for teams,
        * but rather maybe two controllers, once simple feed, one
        * searchable/filtered?
-       * 
+       *
        * @param $scope
        * @param $resource
        * @param MostRecentActivities
@@ -15228,7 +15227,7 @@ define(
          */
         $scope.corpus = {
           description : "",//"Data gathered during the Field methods class at COLING 2012 when we were working with a Cherokee speaker.",
-          gravatar : "user/user_gravatar.png",
+          gravatar : "0df69960706112e38332395a4f2e7542",
           title : "Activity Feed",
           team : {
             username : $routeParams.username
@@ -15325,7 +15324,7 @@ define('js/filters',[ "angular", "OPrime" ], function(angular, OPrime) {
       } ]).filter('gravatar', function(){
         return function(gravatar, scope) {
           if(!gravatar){
-            return "user_gravatar.png";
+            return "0df69960706112e38332395a4f2e7542";
           }
           return gravatar.replace("https://secure.gravatar.com/avatar/","").replace("?s","").replace(/\//g,"").replace("userpublic_gravatar.png","968b8e7fb72b5ffe2915256c28a9414c");
         };
@@ -15335,6 +15334,7 @@ define('js/filters',[ "angular", "OPrime" ], function(angular, OPrime) {
 
   return ActivityFeedFilters;
 });
+
 
 define(
     'js/services',[ "angular", "OPrime", "libs/oprime/services/CouchDB" ],
@@ -15922,7 +15922,7 @@ define("angular-resource", ["angular"], (function (global) {
 OPrime = OPrime || {};
 OPrime.couchURL = function() {
   var corpusURL = window.location.origin;
-  var couchConnection = {
+  var connection = {
     complete : corpusURL + "/lingllama-cherokee-activity_feed/",
     protocol : "https://",
     domain : corpusURL.replace("https://", "").replace("http://", ""),
@@ -15931,36 +15931,36 @@ OPrime.couchURL = function() {
   };
   if (corpusURL.indexOf("corpusdev.lingsync.org") >= 0) {
     corpusURL = "https://corpusdev.lingsync.org";
-    couchConnection.domain = "corpusdev.lingsync.org";
+    connection.domain = "corpusdev.lingsync.org";
   } else if (corpusURL.indexOf("lingsync.org") >= 0) {
     corpusURL = "https://corpus.lingsync.org";
-    couchConnection.domain = "corpus.lingsync.org";
+    connection.domain = "corpus.lingsync.org";
   } else if (corpusURL.indexOf("prosody.linguistics.mcgill") >= 0) {
     corpusURL = "https://prosody.lingsync.org";
-    couchConnection.domain = "prosody.lingsync.org";
+    connection.domain = "prosody.lingsync.org";
   } else if (corpusURL.indexOf("localhost") >= 0) {
     corpusURL = window.location.origin;
-    couchConnection.port = ":" + window.location.port;
-    couchConnection.domain = "localhost";
+    connection.port = ":" + window.location.port;
+    connection.domain = "localhost";
 
   } else if (window.location.origin.indexOf("ocmdknddgpmjngkhcbcofoogkommjfoj") >= 0) {
     corpusURL = "https://corpus.lingsync.org";
-    couchConnection.domain = "corpus.lingsync.org";
+    connection.domain = "corpus.lingsync.org";
   } else if (window.location.origin.indexOf("eeipnabdeimobhlkfaiohienhibfcfpa") >= 0) {
     corpusURL = "https://corpus.lingsync.org";
-    couchConnection.domain = "corpus.lingsync.org";
+    connection.domain = "corpus.lingsync.org";
   } else if (window.location.origin.indexOf("jlbnogfhkigoniojfngfcglhphldldgi") >= 0) {
     corpusURL = "https://corpus.lingsync.org";
-    couchConnection.domain = "corpus.lingsync.org";
+    connection.domain = "corpus.lingsync.org";
   } else {
 //    corpusURL = "https://localhost:6984";
-//    couchConnection.port = ":6984";
-//    couchConnection.domain = "localhost";
+//    connection.port = ":6984";
+//    connection.domain = "localhost";
     corpusURL = "https://corpus.lingsync.org";
-    couchConnection.domain = "corpus.lingsync.org";
+    connection.domain = "corpus.lingsync.org";
   }
-  couchConnection.complete = corpusURL + "/lingllama-cherokee-activity_feed/";
-  return couchConnection;
+  connection.complete = corpusURL + "/lingllama-cherokee-activity_feed/";
+  return connection;
 };
 
 define("webservicesconfig", ["OPrime"], (function (global) {
@@ -16015,3 +16015,4 @@ require([ "js/app", "js/controllers", "js/filters", "js/services",
 });
 
 define("js/main", function(){});
+

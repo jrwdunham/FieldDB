@@ -3,14 +3,14 @@
 echo ""
 echo ""
 echo "Put the Chrome app source into debug mode to see the debugging output."
-sed 's/OPrime.debugMode *= *false/OPrime.debugMode = true/' backbone_client/libs/OPrime.js  > output
+sed 's/OPrime.debugMode *= *false/OPrime.debugMode = false/' backbone_client/libs/OPrime.js  > output
 mv output backbone_client/libs/OPrime.js
 
 echo ""
 echo ""
-echo "Put the dev analytics code."
-sed 's/_AnalyticsCode = "UA-[0123456789]*-1";/_AnalyticsCode = "UA-32705284-1";/' backbone_client/libs/analytics.js  > output
-mv output backbone_client/libs/analytics.js
+# echo "Put the dev analytics code."
+# sed 's/_AnalyticsCode = "UA-[0123456789]*-1";/_AnalyticsCode = "UA-32705284-1";/' backbone_client/libs/analytics.js  > output
+# mv output backbone_client/libs/analytics.js
 
 echo ""
 echo ""
@@ -30,12 +30,6 @@ sed 's/webservicesconfig_[^,]*/webservicesconfig_local"/' backbone_client/user_o
 mv output backbone_client/user_online_dashboard.js
 sed 's/webservicesconfig_[^,]*/webservicesconfig_local"/' backbone_client/welcome_online_dashboard.js  > output
 mv output backbone_client/welcome_online_dashboard.js
-
-echo "" 
-echo ""
-echo "Making localhost available in the spreadsheet app"
-sed 's/scope.localhost = false/scope.localhost = true/' angular_client/modules/spreadsheet/js/controllers/SpreadsheetController.js  > output
-mv output angular_client/modules/spreadsheet/js/controllers/SpreadsheetController.js
 
 echo ""
 echo ""

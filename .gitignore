@@ -1,14 +1,16 @@
-caml2012.pdf
+*.pdf
 
 #ignore compiled handlebars
 compiled_handlebars.js
 *.handlebars.js
 #ignore generated folders
 release/
-couchapp_dev/_attachments
+dist
+map_reduce_data/_attachments
 couchapp_minified/views
 couchapp_minified/lists
 couchapp_minified/_attachments
+dist/
 
 spreadsheet_build_dev
 
@@ -17,7 +19,7 @@ spreadsheet_build_dev
 *private*
 *mcgill*
 
-# Ignore natural lib 
+# Ignore natural lib
 public/libs/natural/
 
 .wav
@@ -34,6 +36,9 @@ proguard.cfg
 node_modules
 bin
 gen
+docs/javascript
+fielddb.js
+fielddb.min.js
 
 # Node #
 ########
@@ -59,6 +64,8 @@ npm-debug.log
 *.dvi
 *.log
 *.aux
+*.dot
+*.bak
 *.toc
 *.bbl
 *.blg
@@ -72,6 +79,9 @@ npm-debug.log
 *.ps
 *(busy)
 *.pdfsync
+*.vrb
+*.snm
+*.nav
 
 # Compiled source #
 ###################
@@ -109,3 +119,4 @@ ehthumbs.db
 Icon?
 Thumbs.db
 *.swp
+sample_data/orthography_preprocessed.json

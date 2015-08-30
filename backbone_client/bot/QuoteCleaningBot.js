@@ -15,15 +15,15 @@ Array.prototype.getUnique = function() {
 	return a;
 };
 
-var Bot = function(pouchname, corpusid, corpustitle, optionalDataListForReviewBeforeRunning) {
-	if (!pouchname || !corpusid || !corpustitle) {
+var Bot = function(dbname, corpusid, corpustitle, optionalDataListForReviewBeforeRunning) {
+	if (!dbname || !corpusid || !corpustitle) {
 		throw ("You must create this bot with a database name, a corpus id and a corpus title. ");
 	}
 	var stopAt = 10;
 
 
-	var activities = $.couch.db(pouchname + "-activity_feed");
-	var database = $.couch.db(pouchname);
+	var activities = $.couch.db(dbname + "-activity_feed");
+	var database = $.couch.db(dbname);
 
 	var name = "quotecleaningbot";
 	var gravatar = "968b8e7fb72b5ffe2915256c28a9414c";
@@ -38,27 +38,27 @@ var Bot = function(pouchname, corpusid, corpustitle, optionalDataListForReviewBe
 		}
 
 		var changes = [];
-		for (var field = datum.datumFields.length - 1; field > 0; field--) {
-			var previousMask = datum.datumFields[field].mask;
-			var previousValue = datum.datumFields[field].value;
-			datum.datumFields[field].mask = previousMask.replace(/[â]/g, "'").replace(/''/g,"'");
-			if (datum.datumFields[field].label === "translation") {
-				datum.datumFields[field].mask = datum.datumFields[field].mask.replace(/OM/g,"om");
-				datum.datumFields[field].mask = datum.datumFields[field].mask.trim().replace(/' +`/g," ").replace(/['"]$/g, "").replace(/^['`"]/g, "");
+		for (var field = datum.fields.length - 1; field > 0; field--) {
+			var previousMask = datum.fields[field].mask;
+			var previousValue = datum.fields[field].value;
+			datum.fields[field].mask = previousMask.replace(/[â]/g, "'").replace(/''/g,"'");
+			if (datum.fields[field].label === "translation") {
+				datum.fields[field].mask = datum.fields[field].mask.replace(/OM/g,"om");
+				datum.fields[field].mask = datum.fields[field].mask.trim().replace(/' +`/g," ").replace(/['"]$/g, "").replace(/^['`"]/g, "");
 			}
-			if (previousMask !== datum.datumFields[field].mask) {
-				changes.push(" quote encoding problems " + previousMask + " -> " + datum.datumFields[field].mask);
+			if (previousMask !== datum.fields[field].mask) {
+				changes.push(" quote encoding problems " + previousMask + " -> " + datum.fields[field].mask);
 			}
 
-			datum.datumFields[field].value = previousValue.replace(/[â]/g, "'").replace(/''/g,"'");
-			if (datum.datumFields[field].label === "translation") {
-				datum.datumFields[field].value = datum.datumFields[field].value.replace(/OM/g,"om");
-				datum.datumFields[field].value = datum.datumFields[field].value.trim().replace(/' +`/g," ").replace(/['"]$/g, "").replace(/^['`"]/g, "");
+			datum.fields[field].value = previousValue.replace(/[â]/g, "'").replace(/''/g,"'");
+			if (datum.fields[field].label === "translation") {
+				datum.fields[field].value = datum.fields[field].value.replace(/OM/g,"om");
+				datum.fields[field].value = datum.fields[field].value.trim().replace(/' +`/g," ").replace(/['"]$/g, "").replace(/^['`"]/g, "");
 			}
-			if (previousValue !== datum.datumFields[field].value) {
-				changes.push(" quote encoding problems " + previousValue + " -> " + datum.datumFields[field].value);
+			if (previousValue !== datum.fields[field].value) {
+				changes.push(" quote encoding problems " + previousValue + " -> " + datum.fields[field].value);
 			}
-			
+
 		}
 
 		if (changes.length === 0) {

@@ -29,99 +29,98 @@ if (window.location.origin.indexOf("localhost") == -1) {
 
 // Set the RequireJS configuration
 require.config({
-  paths : {
+  paths: {
     /* Bootstrap user interface javascript files */
-    "bootstrap" : "libs/bootstrap/js/bootstrap.min",
+    "bootstrap": "libs/bootstrap/js/bootstrap.min",
 
-    "CryptoJS" : "libs/Crypto_AES",
+    "CryptoJS": "libs/Crypto_AES",
 
     /* jQuery and jQuery plugins */
-    "$" : "libs/jquery",
-    "wikitext" : "libs/jquery-wikitext",
+    "jquery": "bower_components/jquery/jquery",
+    "wikitext": "libs/jquery-wikitext",
 
     /* Handlebars html templating libraries and compiled templates */
-    "handlebars" : "libs/compiled_handlebars",
-    "handlebarsjs" : "libs/handlebars.runtime",
+    "handlebars": "libs/compiled_handlebars",
+    "handlebarsjs": "bower_components/handlebars/handlebars.runtime",
 
     /* Backbone Model View Controller framework and its plugins and dependencies */
-    "_" : "libs/underscore",
-    "backbonejs" : "libs/backbone",
-    "jquery-couch" : "libs/backbone_couchdb/jquery.couch",
-    "backbone" : "libs/backbone_couchdb/backbone-couchdb",
+    "_": "bower_components/underscore/underscore",
+    "underscore": "bower_components/underscore/underscore",
+    "backbone": "bower_components/backbone/backbone",
+    "jquerycouch": "libs/backbone_couchdb/jquery.couch",
 
-    "terminal" : "libs/terminal/terminal",
+    "terminal": "libs/terminal/terminal",
 
-    "text" : "libs/text",
+    "text": "libs/text",
 
-    "xml2json" : "libs/xml2json",
+    "xml2json": "libs/xml2json",
 
-    "oprime" : "libs/OPrime",
-    "OPrime" : "libs/webservicesconfig_devserver"
+    "FieldDB": "bower_components/fielddb/fielddb",
+    "oprime": "libs/OPrime",
+    "OPrime": "libs/webservicesconfig_devserver"
   },
-  shim : {
+  shim: {
 
-    "xml2json" : {
-      deps : [ "$" ],
-      exports : "X2JS"
-    },
-
-    "wikitext" : {
-      deps : [ "$" ],
-      exports : "$"
+    "xml2json": {
+      deps: ["jquery"],
+      exports: "X2JS"
     },
 
-    "OPrime" : {
-      deps : [ "oprime" ],
-      exports : "OPrime"
+    "wikitext": {
+      deps: ["jquery"],
+      exports: "jquery"
     },
 
-    "jquery-couch" : {
-      deps : [ "wikitext" ],
-      exports : "$"
+    "OPrime": {
+      deps: ["oprime"],
+      exports: "OPrime"
     },
 
-    "bootstrap" : {
-      deps : [ "jquery-couch" ],
-      exports : "bootstrap"
+    "jquerycouch": {
+      deps: ["wikitext"],
+      exports: "jquery"
     },
 
-    "backbonejs" : {
-      deps : [ "_", "bootstrap" ],
-      exports : "Backbone"
-    },
-    "handlebarsjs" : {
-      deps : [ "backbonejs", "$" ],
-      exports : "Handlebars"
-    },
-    "handlebars" : {
-      deps : [ "handlebarsjs" ],
-      exports : "Handlebars"
-    },
-    "backbone" : {
-      deps : [ "backbonejs", "jquery-couch", "handlebars" ],
-      exports : "Backbone"
+    "bootstrap": {
+      deps: ["jquerycouch"],
+      exports: "bootstrap"
     },
 
-    "terminal" : {
-      deps : [ "bootstrap", "$" ],
-      exports : "Terminal"
+    // "backbonejs": {
+    //   deps: ["underscore", "bootstrap"],
+    //   exports: "Backbone"
+    // },
+    "handlebarsjs": {
+      deps: ["backbone", "jquery"],
+      exports: "Handlebars"
+    },
+    "handlebars": {
+      deps: ["handlebarsjs"],
+      exports: "Handlebars"
+    },
+    // "backbone": {
+    //   deps: ["_", "jquerycouch", "handlebars"],
+    //   exports: "Backbone"
+    // },
+
+    "terminal": {
+      deps: ["bootstrap", "jquery"],
+      exports: "Terminal"
     }
 
   }
 });
 
 // Initialization
-require([ "user/UserApp", "backbone", "OPrime" ], function(App,
-    forcingpouchtoloadearly) {
-
+require(["user/UserApp", "OPrime", "FieldDB"], function(App) {
   try {
     var pieces = window.location.pathname.replace(/^\//, "").split("/");
-    var pouchName = pieces[0];
+    var dbname = pieces[0];
     // Handle McGill server which runs out of a virtual directory
-    if (pouchName == "corpus") {
-      pouchName = pieces[1];
+    if (dbname == "corpus") {
+      dbname = pieces[1];
     }
-    Backbone.couch_connector.config.db_name = pouchName;
+    Backbone.couch_connector.config.db_name = dbname;
   } catch (e) {
     if (OPrime.debugMode)
       OPrime.debug("Couldn't set the databse name off of the url.");
@@ -150,13 +149,13 @@ require([ "user/UserApp", "backbone", "OPrime" ], function(App,
 // Backbone,
 // forcingpouchtoloadonbackboneearly
 // ) {
-//  
+//
 // /*
 // * Start the pub sub hub
 // */
 // window.hub = {};
 // OPrime.makePublisher(window.hub);
-// 
+//
 // /*
 // * Check for user's cookie and the dashboard so we can load it
 // */
@@ -181,10 +180,10 @@ require([ "user/UserApp", "backbone", "OPrime" ], function(App,
 // Backbone.history.start();
 // }
 // });
-//    
+//
 // } else {
 // // new user, let them register or login as themselves or lingllama
 // document.location.href='corpus.html';
 // }
-//  
+//
 // });

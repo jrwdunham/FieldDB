@@ -1,34 +1,34 @@
 define(
-    [ "backbone", 
-      "handlebars", 
-      "user/UserApp", 
+    [ "backbone",
+      "handlebars",
+      "user/UserApp",
       "user/UserRouter",
         "authentication/Authentication",
-        "authentication/AuthenticationEditView", 
+        "authentication/AuthenticationEditView",
         "corpus/Corpus",
-        "corpus/CorpusMask", 
-        "hotkey/HotKey", 
+        "corpus/CorpusMask",
+        "hotkey/HotKey",
         "hotkey/HotKeyEditView",
-        "user/UserPreference", 
-        "user/UserPreferenceEditView", 
+        "user/UserPreference",
+        "user/UserPreferenceEditView",
         "user/User",
-        "user/UserEditView", 
-        "user/UserReadView", 
+        "user/UserEditView",
+        "user/UserReadView",
         "OPrime" ],
     function(
-        Backbone, 
-        Handlebars, 
-        UserApp, 
-        UserRouter, 
+        Backbone,
+        Handlebars,
+        UserApp,
+        UserRouter,
         Authentication,
-        AuthenticationEditView, 
-        Corpus, 
-        CorpusMask, 
-        HotKey, 
+        AuthenticationEditView,
+        Corpus,
+        CorpusMask,
+        HotKey,
         HotKeyEditView,
-        UserPreference, 
-        UserPreferenceEditView, 
-        User, 
+        UserPreference,
+        UserPreferenceEditView,
+        User,
         UserEditView,
         UserReadView) {
       var UserAppView = Backbone.View
@@ -39,10 +39,10 @@ define(
              * @class The main layout of the users dashboard, it shows the nav
              *        bar, authentication menu and the user's profile where they
              *        can select which corpus they want to open.
-             * 
+             *
              * @description Starts the application and initializes all its
              *              children.
-             * 
+             *
              * @extends Backbone.View
              * @constructs
              */
@@ -94,8 +94,8 @@ define(
                 model : this.model.get("authentication").get("userPrivate")
               });
               this.fullScreenReadUserView.format = "fullscreen";
-              
-             
+
+
               this.modalEditUserView = new UserEditView({
                 model : this.model.get("authentication").get("userPrivate")
               });
@@ -137,11 +137,20 @@ define(
                 if(e){
                   e.stopPropagation();
                   e.preventDefault();
-                }   
+                }
                 window.location.href = "#render/true";
               },
               "click .save-dashboard" : function() {
                 window.app.saveAndInterConnectInApp();
+              },
+              "click .sync-my-data" : function(e) {
+                if(e){
+                  e.stopPropagation();
+                  e.preventDefault();
+                }
+                var authUrl = $(".welcomeauthurl").val().trim();
+                authUrl = OPrime.getAuthUrl(authUrl);
+                this.authView.syncUser($(".welcomeusername").val().trim(),$(".welcomepassword").val().trim(), authUrl);
               },
               "click .sync-everything" : "replicateDatabases",
             /*
@@ -170,14 +179,30 @@ define(
                 this.setElement($("#app_view"));
 
                 var jsonToRender = this.model.toJSON();
-                
+
                 jsonToRender.locale_We_need_to_make_sure_its_you = Locale.get("locale_We_need_to_make_sure_its_you");
                 jsonToRender.locale_Password = Locale.get("locale_Password");
                 jsonToRender.locale_Yep_its_me = Locale.get("locale_Yep_its_me");
+                jsonToRender.locale_Corpora = Locale.get("locale_Corpora");
+                jsonToRender.locale_Differences_with_the_central_server = Locale.get("locale_Differences_with_the_central_server");
+                jsonToRender.locale_Instructions_to_show_on_dashboard = Locale.get("locale_Instructions_to_show_on_dashboard"); // Do we still use this instruction?
+                jsonToRender.locale_Log_In = Locale.get("locale_Log_In");
+                jsonToRender.locale_Need_save = Locale.get("locale_Need_save");
+                jsonToRender.locale_Need_sync = Locale.get("locale_Need_sync");
+                jsonToRender.locale_Password = Locale.get("locale_Password");
+                jsonToRender.locale_Recent_Changes = Locale.get("locale_Recent_Changes");
+                jsonToRender.locale_Save_on_this_Computer = Locale.get("locale_Save_on_this_Computer");
+                jsonToRender.locale_Show_Dashboard = Locale.get("locale_Show_Dashboard");
+                jsonToRender.locale_Sync_and_Share = Locale.get("locale_Sync_and_Share");
+                jsonToRender.locale_Username = Locale.get("locale_Username");
+                jsonToRender.locale_View_Public_Profile_Tooltip = Locale.get("locale_View_Public_Profile_Tooltip");
+                jsonToRender.locale_We_need_to_make_sure_its_you = Locale.get("locale_We_need_to_make_sure_its_you");
+                jsonToRender.locale_Yep_its_me = Locale.get("locale_Yep_its_me");
+                jsonToRender.locale_to_beta_testers = Locale.get("locale_to_beta_testers"); // Do we still use this?
 
-                
+
                 $(this.el).html(this.template(jsonToRender));
-              
+
               //The authView is the dropdown in the top right corner which holds all the user menus
                 this.authView.render();
                 this.userPreferenceView.render();
@@ -185,19 +210,19 @@ define(
                 this.renderReadonlyUserViews();
 
               //put the version into the terminal, and into the user menu
-                OPrime.getVersion(function (ver) { 
+                OPrime.getVersion(function (ver) {
                   $(".fielddb-version").html(ver);
                 });
                 $(".corpus-settings").addClass("hidden");
                 $(".power-users-link").addClass("hidden");
-                
+
               }
               return this;
             },
 
             /**
              * Save current state, synchronize the server and local databases.
-             * 
+             *
              * If the corpus connection is currently the default, it attempts to
              * replicate from to the users' last corpus instead.
              */
@@ -212,13 +237,13 @@ define(
                         .syncUserWithServer(
                             function() {
                               var corpusConnection = self.model.get("corpus")
-                                  .get("couchConnection");
+                                  .get("connection");
                               if (self.model.get("authentication").get(
-                                  "userPrivate").get("corpuses").pouchname != "default"
-                                  && app.get("corpus").get("couchConnection").pouchname == "default") {
+                                  "userPrivate").get("corpora").dbname != "default"
+                                  && app.get("corpus").get("connection").dbname == "default") {
                                 corpusConnection = self.model.get(
                                     "authentication").get("userPrivate").get(
-                                    "corpuses")[0];
+                                    "corpora")[0];
                               }
                               self.model.replicateCorpus(
                                   corpusConnection, callback);

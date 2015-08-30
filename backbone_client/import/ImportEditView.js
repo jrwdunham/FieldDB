@@ -1,6 +1,7 @@
-define( [ 
+define( [
     "backbone",
     "handlebars",
+    "audio_video/AudioVideo",
     "import/Import",
     "data_list/DataList",
     "data_list/DataListEditView",
@@ -13,11 +14,13 @@ define( [
     "datum/Session",
     "datum/SessionEditView",
     "app/PaginatedUpdatingCollectionView",
+    "app/UpdatingCollectionView",
     "OPrime"
 
 ], function(
     Backbone,
-    Handlebars, 
+    Handlebars,
+    AudioVideo,
     Import,
     DataList,
     DataListEditView,
@@ -29,7 +32,8 @@ define( [
     DatumTag,
     Session,
     SessionEditView,
-    PaginatedUpdatingCollectionView
+    PaginatedUpdatingCollectionView,
+    UpdatingCollectionView
 
 ) {
   /**
@@ -38,6 +42,7 @@ define( [
   var ImportEditView = Backbone.View.extend({
     initialize : function(){
       this.model.bind("change:asCSV", this.render, this);
+
       this._draghoverClassAdded = false;
       var datumToCauseCorpusToUpdate = new Datum();
     },
@@ -98,13 +103,108 @@ define( [
           this.model.importText(text, this.model);
           this.showSecondStep();
       },
-      
+      "click #format-morpho-challenge" : function(e){
+        e.preventDefault();
+        var text = $(".export-large-textarea").val();
+          this.model.importMorphChallengeSegmentation(text, this.model);
+          this.showSecondStep();
+      },
+
       "click .icon-resize-small" : function(e){
         if(e){
           e.stopPropagation();
           e.preventDefault();
         }
         window.location.href = "#render/true";
+      },
+      "submit #uploadAudioForTextGridform": function(e) {
+        if (e) {
+          e.stopPropagation();
+          e.preventDefault();
+        }
+
+        //get the action-url of the form
+        var actionurl = e.currentTarget.action;
+        var data = new FormData();
+        jQuery.each($('#uploadAudioForTextGridformFiles')[0].files, function(i, file) {
+          data.append(i, file);
+        });
+        data.append("token", "testinguploadtoken");
+        data.append("dbname", this.model.get("dbname"));
+        data.append("username", window.app.get("authentication").get("userPrivate").get("username"));
+        data.append("returnTextGrid", true);
+        this.model.get("audioVideo").reset();
+        var self = this;
+        $.ajax({
+          url: actionurl,
+          type: 'post',
+          // dataType: 'json',
+          cache: false,
+          contentType: false,
+          processData: false,
+          data: data,
+          success: function(results) {
+            if (results && results.status === 200) {
+              self.model.set("uploadDetails", results);
+              self.model.set("files", results.files);
+              self.model.set("status", "File(s) uploaded and utterances were extracted.");
+              var messages = [];
+              self.model.set("rawText","");
+              /* Check for any textgrids which failed */
+              for (var fileIndex = 0; fileIndex < results.files.length; fileIndex++) {
+                if (results.files[fileIndex].textGridStatus >= 400) {
+                  console.log(results.files[fileIndex]);
+                  var instructions = instructions = results.files[fileIndex].textGridInfo;
+                  if(results.files[fileIndex].textGridStatus >= 500){
+                    instructions = " Please report this error to us at support@lingsync.org ";
+                  }
+                  messages.push("Generating the textgrid for " + results.files[fileIndex].fileBaseName + " seems to have failed. "+instructions);
+                } else {
+                  self.model.addAudioVideoFile(OPrime.audioUrl + "/" + self.model.get("dbname") + "/" + results.files[fileIndex].fileBaseName + '.mp3');
+                  self.model.downloadTextGrid(results.files[fileIndex]);
+                }
+              }
+              if (messages.length > 0) {
+                self.model.set("status", messages.join(", "));
+                $(self.el).find(".status").html(self.model.get("status"));
+                window.appView.toastUser(messages.join(", "), "alert-danger", "Import:");
+              }
+            } else {
+              console.log(results);
+              var message = "Upload might have failed to complete processing on your file(s). Please report this error to us at support@lingsync.org ";
+              self.model.set("status", message + ": " + JSON.stringify(results));
+              window.appView.toastUser(message, "alert-danger", "Import:");
+            }
+            $(self.el).find(".status").html(self.model.get("status"));
+          },
+          error: function(response) {
+            var reason = {};
+            if (response && response.responseJSON) {
+              reason = response.responseJSON;
+            } else {
+              var message = "Error contacting the server. ";
+              if (response.status >= 500) {
+                message = message + " Please report this error to us at support@lingsync.org ";
+              } else if (response.status === 413) {
+                message = message + " Your file is too big for upload, please try using FFMpeg to convert it to an mp3 for upload (you can still use your original video/audio in the app when the utterance chunking is done on an mp3.) ";
+              } else {
+                message = message + " Are you offline? If you are online and you still recieve this error, please report it to us: ";
+              }
+              reason = {
+                status: response.status,
+                userFriendlyErrors: [message + response.status]
+              };
+            }
+            console.log(reason);
+            if (reason && reason.userFriendlyErrors) {
+              self.model.set("status", "Upload error: " + reason.userFriendlyErrors.join(" "));
+              window.appView.toastUser(reason.userFriendlyErrors.join(" "), "alert-danger", "Import:");
+              $(self.el).find(".status").html(self.model.get("status"));
+            }
+          }
+        });
+        this.model.set("status", "Contacting server...");
+        $(this.el).find(".status").html(this.model.get("status"));
       },
       /* event listeners for the drag and drop import of files */
       "dragover .drop-zone" : "_dragOverEvent",
@@ -182,7 +282,7 @@ define( [
         $(e.target).removeClass("draghover");
       }
     },
-    
+
     drop: function (data, dataTransfer, e) {
       (function(){
         var self = window.appView.importView.model;
@@ -194,7 +294,7 @@ define( [
       $(".import-progress").attr("max", 4);
 
     },
-    
+
     model : Import,
     template: Handlebars.templates.import_edit_fullscreen,
     updateRawText : function(){
@@ -204,8 +304,8 @@ define( [
     },
     render : function() {
       this.setElement("#import-fullscreen");
-      
-      var jsonToRender = this.model.toJSON(); 
+
+      var jsonToRender = this.model.toJSON();
       jsonToRender.locale_Add_Extra_Columns = Locale.get("locale_Add_Extra_Columns");
       jsonToRender.locale_Attempt_Import = Locale.get("locale_Attempt_Import");
       jsonToRender.locale_Drag_and_Drop_Placeholder = Locale.get("locale_Drag_and_Drop_Placeholder");
@@ -217,9 +317,12 @@ define( [
       jsonToRender.locale_Save_And_Import = Locale.get("locale_Save_And_Import");
       jsonToRender.locale_percent_completed = Locale.get("locale_percent_completed");
 
+      jsonToRender.audioServerUrl = OPrime.audioUrl;
+      // jsonToRender.username = window.app.get("authentication").get("userPrivate").get("username");
+      // jsonToRender.audiouploadtoken = "testingaudiotoken";
 
       $(this.el).html(this.template(jsonToRender));
-      
+
       if(this.dataListView != undefined){
         this.dataListView.format = "import";
         this.dataListView.render();
@@ -228,7 +331,7 @@ define( [
               $("#import-data-list").find(".import-data-list-paginated-view") );
         }
       }
-      
+
       if(this.model.get("session") != undefined){
         if(this.sessionView){
           this.sessionView.destroy_view();
@@ -239,13 +342,13 @@ define( [
         this.sessionView.format = "import";
         this.sessionView.render();
       }
-      
+
       if(this.model.get("asCSV") != undefined){
         this.showCSVTable();
         this.renderDatumFieldsLabels();
         this.showSecondStep();
       }
-      
+
       return this;
     },
     renderDatumFieldsLabels : function(){
@@ -267,7 +370,7 @@ define( [
         $("#import-datum-field-labels").append(x);
         $(".import-progress").attr("max", parseInt($(".import-progress").attr("max"))+1);
       }
-      
+
       //add tags
 //      var x = document.createElement("span");
 //      x.classList.add("pull-left");
@@ -291,7 +394,7 @@ define( [
       colorindex++;
       $("#import-datum-field-labels").append(x);
       $(".import-progress").attr("max", parseInt($(".import-progress").attr("max"))+1);
-      
+
     //add CheckedWithConsultant
       var x = document.createElement("span");
       x.classList.add("pull-left");
@@ -303,7 +406,7 @@ define( [
       colorindex++;
       $("#import-datum-field-labels").append(x);
       $(".import-progress").attr("max", parseInt($(".import-progress").attr("max"))+1);
-      
+
     //add ToBeCheckedWithConsultant
       var x = document.createElement("span");
       x.classList.add("pull-left");
@@ -325,9 +428,14 @@ define( [
       if(rows == undefined){
         rows = this.model.get("asCSV");
       }
+      if (!rows) {
+        OPrime.bug("No datum were detected in this format, try another format.");
+        // return;
+        rows = [];
+      }
       var tableResult = document.getElementById("csv-table-area");
       $(tableResult).empty();
-      
+
       var tablehead = document.createElement("thead");
       var headerRow = document.createElement("tr");
       var extractedHeader = this.model.get("extractedHeader");
@@ -347,7 +455,7 @@ define( [
       }
       tablehead.appendChild(headerRow);
       tableResult.appendChild(tablehead);
-      
+
       var tablebody = document.createElement("tbody");
       tableResult.appendChild(tablebody);
       for(l in rows){
@@ -366,10 +474,11 @@ define( [
     convertTableIntoDataList : function(){
       $(".import-progress").val($(".import-progress").val()+1);
       this.model.set("datumArray", []);
-
+      this.model.get("session").setConsultants(this.model.get("consultants"));
+      var consultantsInThisImportSession = [];
       /* clear out the data list views and datum views
-       * 
-       * Copied from SearchEditView 
+       *
+       * Copied from SearchEditView
        */
       if( this.importPaginatedDataListDatumsView ){
         this.importPaginatedDataListDatumsView.remove(); //backbone to remove from dom
@@ -390,35 +499,38 @@ define( [
         childViewTagName     : "li",
         childViewFormat      : "latex",
         childViewClass       : "row span11"
-      }); 
+      });
 
       if(this.dataListView){
         this.dataListView.destroy_view();
         delete this.dataListView.model; //tell the garbage collector we are done.
       }
-      
+
       var filename = " typing/copy paste into text area";
       var descript = "This is the data list which results from the import of the text typed/pasted in the import text area.";
       try {
-        filename = this.model.get("files")[0].name;
+        filename = this.model.get("files").map(function(file){
+          return file.name;
+        }).join(", ");
         descript = "This is the data list which results from the import of these file(s). " + this.model.get("fileDetails");
       }catch(e){
         //do nothing
       }
-      
+
       this.dataListView = new DataListEditView({
         model : new DataList({
-          "pouchname" : window.app.get("corpus").get("pouchname"),
+          "dbname" : window.app.get("corpus").get("dbname"),
           "title" : "Data from "+filename,
-          "description": descript
+          "description": descript,
+          "audioVideo": this.model.get("audioVideo")
         }),
-      }); 
+      });
       this.dataListView.format = "import";
       this.dataListView.render();
       this.importPaginatedDataListDatumsView.renderInElement(
         $("#import-data-list").find(".import-data-list-paginated-view") );
-      
-      
+
+
       if(this.model.get("session") != undefined){
         if(this.sessionView){
           this.sessionView.destroy_view();
@@ -437,7 +549,7 @@ define( [
         this.sessionView.render();
       }
       /* end views set up */
-      
+
       this.model.set("datumArray", []);
       var headers = [];
       $("#csv-table-area").find('th').each(function(index, item) {
@@ -476,7 +588,7 @@ define( [
           }
         }
       }
-      
+
       /*
        * Cycle through all the rows in table and create a datum with the matching fields.
        */
@@ -503,7 +615,7 @@ define( [
             testForEmptyness += $(item).html();
           });
           //if the table row has more than 2 non-white space characters, enter it as data
-          if(testForEmptyness.replace(/\W/g,"").length >= 2){
+          if(testForEmptyness.replace(/[ \t\n]/g,"").length >= 2){
             array.push(datumObject);
           }else{
             //dont add blank datum
@@ -530,26 +642,54 @@ define( [
           }
         }
       }
-      
+
       /*
        * after building an array of datumobjects, turn them into backbone objects
        */
       for (a in array) {
         var d = new Datum({
           filledWithDefaults : true,
-          pouchname : window.app.get("corpus").get("pouchname")
+          dbname : window.app.get("corpus").get("dbname")
         });
-      //copy the corpus's datum fields and empty them.
+        //copy the corpus's datum fields and empty them.
         var datumfields = app.get("corpus").get("datumFields").toJSON();
         for(var x in datumfields){
           datumfields[x].mask = "";
           datumfields[x].value = "";
+          if (datumfields[x].label === "modifiedByUser") {
+            datumfields[x].users = [];
+          } else if (datumfields[x].label === "enteredByUser") {
+            var user = {
+              username: window.app.get("authentication").get("userPublic").get("username"),
+              gravatar: window.app.get("authentication").get("userPublic").get("gravatar"),
+              firstname: window.app.get("authentication").get("userPublic").get("firstname"),
+              lastname: window.app.get("authentication").get("userPublic").get("lastname")
+            };
+            var usersName = user.firstname + " " + user.lastname;
+            usersName = usersName.replace(/undefined/g, "");
+            if (!usersName || usersName.trim().length < 2) {
+              usersName = user.username;
+            }
+            datumfields[x].user = user;
+            datumfields[x].mask = usersName;
+            datumfields[x].value = usersName;
+          }
         }
         var fields = new DatumFields(datumfields);
-        $.each(array[a], function(index, value) { 
+        var audioVideo = null;
+        var audioFileDescriptionsKeyedByFilename = {};
+        if(this.model.get("files") && this.model.get("files").map){
+          this.model.get("files").map(function(fileDetails){
+            var details = JSON.parse(JSON.stringify(fileDetails));
+            delete details.textgrid;
+            audioFileDescriptionsKeyedByFilename[fileDetails.fileBaseName + ".mp3"] = details;
+          });
+        }
+
+        $.each(array[a], function(index, value) {
           if(index == "" || index == undefined){
             //do nothing
-          } 
+          }
           /* TODO removing old tag code for */
 //          else if (index == "datumTags") {
 //            var tags = value.split(" ");
@@ -573,6 +713,7 @@ define( [
             var validationStati = [];
             for(g in consultants){
               var consultantusername = consultants[g].toLowerCase();
+              consultantsInThisImportSession.push(consultantusername);
               if(!consultantusername){
                 continue;
               }
@@ -582,7 +723,7 @@ define( [
                 validationType = "ToBeCheckedWith";
                 validationColor = "warning";
               }
-              
+
               var validationString = validationType + consultants[g].replace(/[- _.]/g,"");
               validationStati.push(validationString);
               var n = fields.where({label: "validationStatus"})[0];
@@ -592,7 +733,7 @@ define( [
               validationStatus = validationStatus + validationStati.join(" ");
               var uniqueStati = _.unique(validationStatus.trim().split(" "));
               n.set("mask", uniqueStati.join(" "));
-              
+
 //              ROUGH DRAFT of adding CONSULTANTS logic TODO do this in the angular app, dont bother with the backbone app
 //              /* get the initials from the data */
 //              var consultantCode = consultants[g].replace(/[a-z -]/g,"");
@@ -643,7 +784,7 @@ define( [
 //                  c.set("dialect", dialect);
 //                if(dialect)
 //                  c.set("language", language);
-//                
+//
 //                onceWeGetTheConsultant();
 //              };
 //              c.fetch({
@@ -654,8 +795,8 @@ define( [
 //                  callIfItsANewConsultant();
 //                }
 //              });
-              
-             
+
+
             }
           } else if(index == "validationStatus" ) {
             var n = fields.where({label: index})[0];
@@ -667,7 +808,26 @@ define( [
               var uniqueStati = _.unique(validationStatus.trim().split(" "));
               n.set("mask", uniqueStati.join(" "));
             }
-          } else{
+          } else if (index == "audioFileName" ) {
+            if(!audioVideo){
+              audioVideo = new AudioVideo();
+            }
+            audioVideo.set("filename", value);
+            audioVideo.set("orginalFilename", audioFileDescriptionsKeyedByFilename[value] ? audioFileDescriptionsKeyedByFilename[value].name : "");
+            audioVideo.set("URL", OPrime.audioUrl + "/" + window.app.get("corpus").get("dbname") + "/" + value);
+            audioVideo.set("description", audioFileDescriptionsKeyedByFilename[value] ? audioFileDescriptionsKeyedByFilename[value].description : "");
+            audioVideo.set("details", audioFileDescriptionsKeyedByFilename[value]);
+          } else if (index == "startTime") {
+            if(!audioVideo){
+              audioVideo = new AudioVideo();
+            }
+            audioVideo.set("startTime", value);
+          } else if(index == "endTime" ) {
+            if(!audioVideo){
+              audioVideo = new AudioVideo();
+            }
+            audioVideo.set("endTime", value);
+          } else {
             var knownlowercasefields = "utterance,gloss,morphemes,translation".split();
             if(knownlowercasefields.indexOf(index.toLowerCase()) > -1){
               index = index.toLowerCase();
@@ -679,18 +839,22 @@ define( [
           }
         });
         d.set("datumFields", fields);
+        if (audioVideo) {
+          d.get("audioVideo").add(audioVideo);
+          // console.log( JSON.stringify(audioVideo.toJSON())+ JSON.stringify(fields.toJSON()));
+        }
         // var states = window.app.get("corpus").get("datumStates").clone();
         // d.set("datumStates", states);
         d.set("session", this.model.get("session"));
         //these are temp datums, dont save them until the user saves the data list
         this.importPaginatedDataListDatumsView.collection.add(d);
 //        this.dataListView.model.get("datumIds").push(d.id); the datum has no id, cannot put in datumIds
-
+        d.lookForSimilarDatum();
         this.model.get("datumArray").push(d);
       }
-      
+      this.model.set("consultants", _.unique(consultantsInThisImportSession).join(","));
       this.importPaginatedDataListDatumsView.renderUpdatedPaginationControl();
-      
+
       $(".approve-save").removeAttr("disabled");
       $(".approve-save").removeClass("disabled");
     },
@@ -703,19 +867,19 @@ define( [
       var thatdatum = this.model.get("datumArray")[d];
       thatdatum.set({
         "session" : this.model.get("session"),
-        "pouchname" : window.app.get("corpus").get("pouchname"),
+        "dbname" : window.app.get("corpus").get("dbname"),
         "dateEntered" : JSON.stringify(new Date()),
         "dateModified" : JSON.stringify(new Date())
       });
-      
+
       thatdatum.saveAndInterConnectInApp(function(){
         hub.publish("savedDatumToPouch",{d: d, message: " datum "+thatdatum.id});
 
         // Update progress bar
         $(".import-progress").val($(".import-progress").val()+1);
-     
+
         // Add Datum to the new datalist and render it this should work
-        // because the datum is saved in the pouch and can be fetched, 
+        // because the datum is saved in the pouch and can be fetched,
         // this will also not be the default data list because has been replaced by the data list for this import
         //TODO This is still necessary, we cannot put the ids direclty into he datalist's model when it is created, they have no id.
 //        window.appView.currentPaginatedDataListDatumsView.collection.unshift(thatdatum);
@@ -737,11 +901,11 @@ define( [
       }
       thatdatum.set({
         "session" : this.model.get("session"),
-        "pouchname" : window.app.get("corpus").get("pouchname"),
+        "dbname" : window.app.get("corpus").get("dbname"),
         "dateEntered" : JSON.stringify(new Date()),
         "dateModified" : JSON.stringify(new Date())
       });
-      
+
       thatdatum.saveAndInterConnectInApp(function(){
         // Add Datum to the new datalist and render it this should work
         window.appView.importView.dataListView.model.get("datumIds").push(thatdatum.id);
@@ -758,7 +922,7 @@ define( [
     },
     importCompleted : function(){
       window.appView.toastUser( this.savedcount + " of your "
-          +this.model.get("datumArray").length 
+          +this.model.get("datumArray").length
           +" datum have been imported. "
           +this.savefailedcount+" didn't import. "
           ,"alert-success","Import successful:");
@@ -783,7 +947,7 @@ define( [
 
       window.hub.unsubscribe("savedDatumToPouch", null, window.appView.importView);
       window.hub.unsubscribe("saveDatumFailedToPouch", null, window.appView.importView);
-      
+
       // Set new data list as current one, and Render the first page of the new data list
       window.appView.importView.dataListView.model.saveAndInterConnectInApp(function(){
         window.appView.importView.dataListView.model.setAsCurrentDataList(function(){
@@ -798,18 +962,18 @@ define( [
 //      window.appView.renderReadonlyDataListViews();
 //    window.appView.dataListReadLeftSideView.renderFirstPage(); //TODO read data
 //    lists dont have this function, should we put it in...
-      
+
       $(".import-progress").val( $(".import-progress").attr("max") );
       $(".approve-save").html("Finished");
-      
+
       /* ask the corpus to update its frequent datum fields given the new datum */
-      var couchConnection = window.app.get("corpus").get("couchConnection");
-      var couchurl = OPrime.getCouchUrl(couchConnection) + "/_design/pages/_view/get_frequent_fields?group=true";
+      var connection = window.app.get("corpus").get("connection");
+      var couchurl = OPrime.getCouchUrl(connection) + "/_design/deprecated/_view/get_frequent_fields?group=true";
       window.app.get("corpus").getFrequentDatumFields(couchurl);
       /* might have added new datum states, so save the corpus */
       window.app.get("corpus").saveAndInterConnectInApp();
-      
-      // Go back to the dashboard 
+
+      // Go back to the dashboard
       window.location.href = "#render/true";
     },
     /**
@@ -820,7 +984,7 @@ define( [
       self.createNewSession( function(){
         self.model.get("session").saveAndInterConnectInApp(function(){
           $(".import-progress").val($(".import-progress").val()+1);
-          
+
           window.hub.unsubscribe("savedDatumToPouch", null, self);
           window.hub.unsubscribe("saveDatumFailedToPouch", null, self);
           this.savedcount = 0;
@@ -828,15 +992,15 @@ define( [
           this.savefailedcount = 0;
           this.savefailedindex = [];
           this.nextsavedatum  = 0;
-          
+
           // after we have a session
           $(".approve-save").addClass("disabled");
           // add the datums to the progress bar, so that we can augment for each
           // that is saved.
           $(".import-progress").attr("max", parseInt($(".import-progress").attr("max")) + parseInt(self.model.get("datumArray").length));
-          
+
 //          var dl = new DataList({
-//            "pouchname" : window.app.get("corpus").get("pouchname"),
+//            "dbname" : window.app.get("corpus").get("dbname"),
 //            "title" : self.dataListView.model.get("title"),
 //            "description": self.dataListView.model.get("description")
 //          });
@@ -844,10 +1008,10 @@ define( [
           //empty out datumids
           window.appView.importView.dataListView.model.set("datumIds", []);
           self.dataListView.model.saveAndInterConnectInApp(function(){
-              
+
               // Update the progress bar, one more thing is done.
               $(".import-progress").val($(".import-progress").val()+1);
-              
+
               window.app.addActivity({
                     verb : "attempted to import",
                     directobject : self.model.get("datumArray").length + " data entries",
@@ -855,7 +1019,7 @@ define( [
                     teamOrPersonal : "team",
                     context : "via Offline App"
                   });
-              
+
               window.app.addActivity({
                     verb : "attempted to import",
                     directobject : self.model.get("datumArray").length + " data entries",
@@ -863,22 +1027,22 @@ define( [
                     teamOrPersonal : "personal",
                     context : "via Offline App"
                   });
-              
+
               window.hub.subscribe("savedDatumToPouch", function(arg){
                 this.savedindex[arg.id] = true;
                 this.savedcount++;
                 this.popSaveADatumAndLoop(arg.d);
               }, self);
-              
+
               window.hub.subscribe("saveDatumFailedToPouch",function(arg){
                 this.savefailedindex[arg.id] = false; //this.model.get("datumArray")[arg.d];
                 this.savefailedcount++;
                 window.appView.toastUser("Import failed "+arg.id+" : "+arg.message,"alert-danger","Failure:");
                 this.popSaveADatumAndLoop(arg.d);
               }, self);
-              
+
               /*
-               * Begin the datum saving loop 
+               * Begin the datum saving loop
                */
               if(self.model.get("datumArray").length > 0){
                 self.popSaveADatumAndLoop(self.model.get("datumArray"));
@@ -887,48 +1051,54 @@ define( [
                 this.importCompleted();
                 return;
               }
-                            
+
             /* end successful save of datalist and session */
-            
-          
+
+
           }/* Default Save datalist failure */);
-        
+
         }/*Default Save session failure */);
       });
     },
     /**
      * For now just creating a session and saving it, not showing it to the user.
-     * 
+     *
      * @param callback
      */
     createNewSession : function(callback){
       if(this.model.get("session") == undefined){
         this.model.set("session", new Session({
           sessionFields : window.app.get("corpus").get("sessionFields").clone(),
-          "pouchname" : window.app.get("corpus").get("pouchname"),
+          "dbname" : window.app.get("corpus").get("dbname"),
         }));
-        
+
         var filemodified = JSON.stringify(new Date());
         try {
-          filemodified = this.model.get("files")[0].lastModifiedDate ? this.model.get("files")[0].lastModifiedDate.toLocaleDateString()
-              : 'n/a';
-        }catch(e){
+          filemodified = this.model.get("files").map(function(file) {
+            var value = file.lastModifiedDate ? file.lastModifiedDate.toLocaleDateString() : "";
+            if(!value){
+              value = file.mtime ? new Date(file.mtime).toLocaleDateString() : "n/a";
+            }
+            return value;
+          });
+          filemodified = _.unique(filemodified).join(", ");
+        } catch (e) {
           //do nothing
         }
-        
+
         this.model.get("session").get("sessionFields").where({
           label : "goal"
         })[0].set("mask", "Goal from file import " + this.model.get("status"));
-       
+
         this.model.get("session").get("sessionFields").where({
           label : "dateElicited"
         })[0].set("mask", "Probably Prior to " + filemodified);
-        
+
         this.model.get("session").get("sessionFields").where({
           label : "consultants"
         })[0].set("mask", "Unknown");
       }
-      
+
       //DONT save now, save only when import is approved.
       if(typeof callback == "function"){
         callback();
@@ -958,7 +1128,7 @@ define( [
     dragSrcEl : null,
     /**
      * http://www.html5rocks.com/en/tutorials/dnd/basics/
-     * 
+     *
      * @param e
      */
     handleDragStart : function(e) {
@@ -976,7 +1146,7 @@ define( [
     },
     /**
      * http://www.html5rocks.com/en/tutorials/dnd/basics/
-     * 
+     *
      * @param e
      */
     dragLabelToColumn : function(e) {
@@ -985,7 +1155,7 @@ define( [
       if (e.stopPropagation) {
         e.stopPropagation(); // stops the browser from redirecting.
       }
-      
+
    // Don't do anything if dropping the same column we're dragging.
       if (window.appView.importView.dragSrcEl != this && window.appView.importView.dragSrcEl != null) {
         // Set the source column's HTML to the HTML of the columnwe dropped on.
@@ -1005,8 +1175,8 @@ define( [
       e.dataTransfer.dropEffect = 'copy';  // See the section on the DataTransfer object.
       return false;
     },
-    
-//// Choose an option from Dropdown "Import from" then the second step will show up    
+
+//// Choose an option from Dropdown "Import from" then the second step will show up
     showSecondStep : function(e){
       if(e){
         e.stopPropagation();
@@ -1014,9 +1184,9 @@ define( [
       }
       $("#import-second-step").removeClass("hidden");
     },
-    
+
     /**
-     * 
+     *
      * http://stackoverflow.com/questions/6569704/destroy-or-remove-a-view-in-backbone-js
      */
     destroy_view: function() {
@@ -1024,13 +1194,13 @@ define( [
       //COMPLETELY UNBIND THE VIEW
       this.undelegateEvents();
 
-      $(this.el).removeData().unbind(); 
+      $(this.el).removeData().unbind();
 
       //Remove view from DOM
-//      this.remove();  
+//      this.remove();
 //      Backbone.View.prototype.remove.call(this);
       }
   });
-  
+
   return ImportEditView;
 });

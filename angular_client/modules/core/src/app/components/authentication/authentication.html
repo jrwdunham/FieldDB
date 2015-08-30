@@ -1,0 +1,24 @@
+<form class="navbar-form navbar-right" role="login">
+  <div class="form-group" ng-hide="application.authentication.user.authenticated" >
+    <input type="text" placeholder="Username" class="form-control" fielddb-auto-focus ng-model="loginDetails.username" name="username" value="" tabindex="1"/>
+    &nbsp;
+    <input type="password" placeholder="Password" class="form-control" ng-model="loginDetails.password" name="password" tabindex="2"/>
+    &nbsp;
+    <select class="form-control btn btn-inverse" ng-model="loginDetails.connection" ng-options="connection.userFriendlyServerName for connection in application.knownConnections" tabindex="3">
+      <option>Other</option>
+    </select>
+    <button type="submit" class="btn btn-success" ng-click="login(loginDetails)" tabindex="4">
+      Login
+    </button>
+  </div>
+  <div ng-show="application.authentication.error">
+    {{application.authentication.error}}
+  </div>
+  <span class="form-group" ng-show="application.authentication.user.authenticated" >
+
+    <button class="btn btn-warning" ng-click="logout()" tabindex="-1">
+      Logout
+    </button>
+    <span data-fielddb-locales></span>
+  </span>
+</form>

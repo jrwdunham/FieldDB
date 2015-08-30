@@ -3,10 +3,11 @@ require.config({
   paths : {
 
     /* jQuery and jQuery plugins */
-    "jquery" : "libs/jquery",
+    "jquery" : "bower_components/jquery/jquery",
 
     "pouch" : "libs/pouch.alpha",
 
+    "FieldDB" : "bower_components/fielddb/fielddb",
     "oprime" : "libs/OPrime",
     "webservicesconfig" : "libs/webservicesconfig_devserver"
   },
@@ -33,8 +34,36 @@ require.config({
 
 // Initialization
 require(
-    [ "pouch", "oprime" ],
+    [ "pouch", "oprime", "FieldDB" ],
     function(forcingpouchtoloadearly, OPrime) {
+
+      var goToPrototypeApp = function(){
+        var action_url = "corpus.html";
+        chrome.tabs.create({
+          url: action_url
+        });
+      }
+      document.getElementById("goToPrototypeApp").onclick = goToPrototypeApp;
+
+      var goToCorpusPagesApp = function(){
+        var action_url = "https://www.lingsync.org/public";
+        chrome.tabs.create({
+          url: action_url
+        });
+      }
+      document.getElementById("goToCorpusPagesApp").onclick = goToCorpusPagesApp;
+
+
+
+      var goToSpreadsheetApp = function(){
+        var action_url = "http://app.lingsync.org";
+        chrome.tabs.create({
+          url: action_url
+        });
+      }
+      document.getElementById("goToSpreadsheetApp").onclick = goToSpreadsheetApp;
+
+
 
       $('#dashboard_loading_spinner')
           .html(
@@ -83,11 +112,11 @@ require(
         }
       };
 
-      window.backupPouch = function(pouchname) {
+      window.backupPouch = function(dbname) {
         /* Ignore pouches that don't need to be replicated */
-        pouchname = pouchname.replace(/_id/g,"");
-        
-        if (window.databasesThatDontNeedReplication.indexOf(pouchname) >= 0) {
+        dbname = dbname.replace(/_id/g,"");
+
+        if (window.databasesThatDontNeedReplication.indexOf(dbname) >= 0) {
           /* Go to the next pouch */
           window.currentPouch++;
           if (window.currentPouch < window.pouches.length) {
@@ -95,13 +124,13 @@ require(
           }
         }
         try{
-        pouchnameid = pouchname + "_id";
-        Pouch.replicate('idb://' + pouchnameid,
-            'https://corpusdev.lingsync.org/' + pouchname, {
+        dbnameid = dbname + "_id";
+        Pouch.replicate('idb://' + dbnameid,
+            'https://corpusdev.lingsync.org/' + dbname, {
               complete : function() {
                 $("#dashboard_loading_spinner").append(
-                    "<h2>Finished backing up " + pouchname + " to "
-                        + "https://corpusdev.lingsync.org/" + pouchname
+                    "<h2>Finished backing up " + dbname + " to "
+                        + "https://corpusdev.lingsync.org/" + dbname
                         + "</h2>");
                  /* Go to the next pouch */
                   window.currentPouch++;
@@ -113,8 +142,8 @@ require(
               },
               onChange : function(change) {
                 $("#dashboard_loading_spinner").append(
-                    "<div>Backing up " + pouchname + " to "
-                        + "https://corpusdev.lingsync.org/" + pouchname
+                    "<div>Backing up " + dbname + " to "
+                        + "https://corpusdev.lingsync.org/" + dbname
                         + " Change:  " + JSON.stringify(change) + '</div>');
               },
               onSuccess : function(info) {
@@ -122,14 +151,14 @@ require(
               }
 
             }, function(err, changes) {
-              console.log("Backing up " + pouchname + " to "
-                  + 'https://corpusdev.lingsync.org/' + pouchname, err,
+              console.log("Backing up " + dbname + " to "
+                  + 'https://corpusdev.lingsync.org/' + dbname, err,
                   changes);
               if (!err) {
-                window.actuallyReplicatedPouches.push(pouchname);
+                window.actuallyReplicatedPouches.push(dbname);
                 $("#dashboard_loading_spinner").append(
-                    "<h2>Finished backing up " + pouchname + " to "
-                        + "https://corpusdev.lingsync.org/" + pouchname
+                    "<h2>Finished backing up " + dbname + " to "
+                        + "https://corpusdev.lingsync.org/" + dbname
                         + "</h2>");
                 $("#dashboard_loading_spinner").append(
                     "<small>Changes " + JSON.stringify(changes) + "</small>");
@@ -175,19 +204,18 @@ require(
         name : "backupdatabases",
         password : "none"
       };
-      
+
       window.setTimeout(window.waitForPouchesList, 1000);
-      
-      OPrime.makeCORSRequest({
-        type : 'POST',
-        url : "https://corpusdev.lingsync.org/_session",
-        data : corpusloginparams,
-        success : function(serverResults) {
-          console.log("success",serverResults);
-        },
-        error : function(serverResults) {
-          console.log("There was a problem contacting the server to automatically back up your databases so you can use version 1.38 and greater. Please contact us at opensource@lingsync.org, someone will help you back up your data manually.");
-        }
+
+      FieldDB.CORS.makeCORSRequest({
+        type: 'POST',
+        withCredentials: true,
+        url: "https://corpusdev.lingsync.org/_session",
+        data: corpusloginparams
+      }).then(function(serverResults) {
+        console.log("success", serverResults);
+      }, function(serverResults) {
+        console.log("There was a problem contacting the server to automatically back up your databases so you can use version 1.38 and greater. Please contact us at opensource@lingsync.org, someone will help you back up your data manually.");
       });
 
     });

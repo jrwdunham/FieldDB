@@ -29,7 +29,7 @@
 				<li><a href="#import"  >{{locale_Import_Data}}</a></li>
 				<li><a href="{{exportAllDatumURL}}" target="_blank">{{locale_Export_Data}}</a></li>
 				<li><a href="{{exportWordListURL}}" target="_blank">Word List</a></li>
-				<li><a href="#corpus/{{pouchname}}/alldata">{{locale_All_Data}}</a></li>
+				<li><a href="#corpus/{{dbname}}/alldata">{{locale_All_Data}}</a></li>
 			</ul>
 		</div>
 		<!-- /Corpus Menu - Identical for all Corpus Handlebars -->
@@ -85,7 +85,7 @@
           you and your collaborators are working on Mi'gmaq, you might have a
           master corpus with the most data that you all can use to gloss your
           corpus. For an example url, see LingLlama's sample Quechua corpus:
-          https://corpusdev.lingsync.org/lingllama-firstcorpus/_design/pages/_view/precedence_rules?group=true</span>
+          https://corpusdev.lingsync.org/lingllama-firstcorpus/_design/deprecated/_view/precedence_rules?group=true</span>
         <br /> <span>You can also create your own glosser web
           service or use an existing glosser/morpheme segmenter you have
           access too as long as it is available on a URL and uses a similar data schema. <a
@@ -155,6 +155,22 @@
 		</div>
 	</div>
 
+  <div class="accordion-group">
+    <div class="accordion-heading">
+      <a class="accordion-toggle" data-toggle="collapse"
+        data-parent="#accordion-read-embedded"
+        href="#collapseSessionFieldSettingsRE"> <i class="icon-calendar"></i>
+        <strong>{{locale_Session_field_settings}}</strong>
+      </a>
+    </div>
+    <div id="collapseSessionFieldSettingsRE" class="accordion-body collapse">
+      <div class="accordion-inner">
+        <span>{{{locale_session_fields_explanation}}}</span>
+        <ul class="session_field_settings unstyled"></ul>
+      </div>
+    </div>
+  </div>
+
 	<div class="accordion-group">
 		<div class="accordion-heading">
 			<a class="accordion-toggle" data-toggle="collapse"
@@ -207,4 +223,4 @@
 
 <!-- Corpus comments -->
 <ul class="comments unstyled"></ul>
-<div class="new-comment-area "></div> 
+<div class="new-comment-area "></div>
