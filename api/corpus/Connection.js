@@ -712,7 +712,7 @@ Connection.defaultConnection = function(optionalHREF, passAsReference) {
       connection = Connection.knownConnections.production;
     } else if (optionalHREF.indexOf("prosody.linguistics.mcgill") >= 0) {
       connection = Connection.knownConnections.mcgill;
-    } else if (optionalHREF.indexOf("localhost") >= 0) {
+    } else if (optionalHREF.indexOf("localhost") >= 0 || optionalHREF.indexOf("127.0.0.1") >=0) {
       connection = Connection.knownConnections.localhost;
     }
   } else {
