@@ -335,7 +335,7 @@ Corpus.prototype = Object.create(CorpusMask.prototype, /** @lends Corpus.prototy
   // proposed by the authors of Backbone to documents in your database,
   // so that you don't have to change existing apps when you switch the sync-strategy
   api: {
-    value: "private_corpora"
+    value: "Corpus"
   },
 
 
